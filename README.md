@@ -12,7 +12,7 @@ les données par **région** et **catégorie de produits**.
 
 ## 📄 Rapport en ligne
 
-**👉 [Voir le rapport interactif](file:///C:/Users/MOHAMED/Documents/DATA_ANALYSIS/FORMATION_NIVEAU_AVANCER/R_coursera_Data/retail2.html#)
+**👉 [Voir le rapport interactif](https://mohamedly-oss.github.io/interactive-sales-report-R/retail2.html)
 
 ---
 
