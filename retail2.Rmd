@@ -1,0 +1,209 @@
+---
+title: "Interactive Sales Report"
+author: "Coursera Learner"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    fig_caption: yes
+params: 
+    category: "Toys"   # Paramètre dynamique — changer pour filtrer une autre catégorie
+---
+
+```{r setup, include = FALSE}
+# Configuration globale des chunks R
+knitr::opts_chunk$set(
+  collapse = TRUE,   # Collapse les outputs dans le même bloc
+  comment  = "#>",   # Préfixe des outputs
+  message  = FALSE,  # Cacher les messages
+  warning  = FALSE   # Cacher les warnings
+)
+```
+
+## Introduction
+
+Ce rapport interactif analyse les données de ventes par **région** et **catégorie de produits**.
+Il utilise les fonctionnalités interactives de R Markdown pour permettre une exploration dynamique des données.
+
+---
+
+## Background Code
+
+Le code ci-dessous charge les bibliothèques nécessaires et importe le dataset.
+
+```{r load}
+# Chargement des bibliothèques
+library(dplyr)     # Manipulation des données
+library(ggplot2)   # Visualisations statiques
+library(plotly)    # Visualisations interactives
+library(DT)        # Tableaux interactifs
+library(lubridate) # Gestion des dates
+library(readr)     # Lecture des fichiers CSV
+
+# Chargement et parsing du dataset
+sales_data <- read_csv("C:/Users/MOHAMED/Documents/DATA_ANALYSIS/FORMATION_NIVEAU_AVANCER/R_coursera_Data/sales_data.csv")
+
+# Conversion de la colonne date en format Date
+sales_data$Date <- as.Date(sales_data$date)
+
+# Aperçu des données
+head(sales_data)
+```
+
+---
+
+## Activity 1 : Graphiques Interactifs
+
+### Objectif
+Créer un boxplot interactif des unités vendues par région en utilisant **ggplot2** + **plotly**.
+
+### Méthode
+- `ggplot2` crée le graphique statique
+- `ggplotly()` le rend **interactif** *(zoom, survol, filtres)*
+
+```{r activity1}
+# Créer le boxplot avec ggplot2
+plot_1 <- ggplot(sales_data, aes(x = region, y = units_sold, fill = region)) +
+  geom_boxplot() +                          # Graphique en boîte à moustaches
+  labs(
+    title = "Units Sold by Region",         # Titre du graphique
+    x     = "Region",                       # Label axe X
+    y     = "Units Sold",                   # Label axe Y
+    fill  = "Region"                        # Label légende
+  ) +
+  theme_minimal()                           # Thème épuré
+
+# Rendre le graphique interactif avec plotly
+ggplotly(plot_1)
+```
+
+> **Interprétation :** Ce boxplot montre la distribution des unités vendues par région.
+> Les boîtes représentent le **1er et 3ème quartile**, la ligne centrale la **médiane**,
+> et les points au-delà des moustaches sont des **outliers**.
+
+---
+
+## Activity 2 : Tableaux Interactifs
+
+### Objectif
+Créer un tableau interactif du résumé des ventes par région avec **DT**.
+
+### Méthode
+- `dplyr` calcule les statistiques par groupe
+- `datatable()` rend le tableau **filtrable** et **triable**
+
+```{r activity2}
+# Créer le résumé des ventes par région
+summary_tbl <- sales_data %>%
+  group_by(region) %>%                      # Grouper par région
+  summarize(
+    Average_Revenue = round(mean(revenue,  na.rm = TRUE), 2),  # Revenue moyen
+    Total_Revenue   = round(sum(revenue,   na.rm = TRUE), 2),  # Revenue total
+    Total_Units     = sum(units_sold,      na.rm = TRUE),      # Unités totales
+    Transactions    = n()                                       # Nombre de transactions
+  ) %>%
+  arrange(desc(Total_Revenue))              # Trier par revenue décroissant
+
+# Afficher en tableau interactif
+datatable(
+  summary_tbl,
+  caption  = "Résumé des ventes par région",
+  options  = list(
+    pageLength      = 10,
+    searchHighlight = TRUE
+  ),
+  colnames = c("Région", "Revenue Moyen ($)", "Revenue Total ($)",
+               "Unités Vendues", "Transactions")
+)
+```
+
+> **Interprétation :** Ce tableau permet de comparer les performances de chaque région.
+> Utilisez la **barre de recherche** pour filtrer et cliquez sur les **en-têtes** pour trier.
+
+---
+
+## Activity 3 : Filtres et Contrôles Interactifs
+
+### Objectif
+Filtrer les données selon le paramètre `category` défini dans le YAML.
+
+> **Catégorie sélectionnée :** **`r params$category`**
+
+```{r activity3}
+# Afficher les catégories disponibles
+cat("Catégories disponibles :", unique(sales_data$category), "\n")
+
+# Filtrer selon le paramètre YAML
+category_data <- sales_data %>%
+  filter(category == params$category)
+
+cat("Nombre de lignes pour", params$category, ":", nrow(category_data), "\n")
+
+# Créer le graphique de tendance
+plot_2 <- ggplot(category_data, aes(x = Date, y = revenue, color = region)) +
+  geom_line(lwd = 1) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(
+    title    = paste("Tendance des ventes pour :", params$category),
+    subtitle = paste("Période :", min(category_data$Date), "→", max(category_data$Date)),
+    x        = "Date",
+    y        = "Revenue ($)",
+    color    = "Région"
+  ) +
+  theme_minimal()
+
+ggplotly(plot_2)
+```
+
+> **Interprétation :** Ce graphique montre l'évolution du revenue pour la catégorie
+> **`r params$category`** par région. Les lignes en pointillés représentent la **tendance linéaire**.
+
+---
+
+## Activity 4 : Validation et Optimisation
+
+### Objectif
+Ajouter une logique conditionnelle pour éviter les graphiques vides.
+
+```{r activity4}
+if (nrow(category_data) > 0) {
+
+  cat("Données disponibles pour :", params$category, "\n")
+
+  plot_3 <- ggplot(category_data, aes(x = Date, y = units_sold, fill = region)) +
+    geom_col() +
+    labs(
+      title    = paste("Unités vendues pour :", params$category),
+      subtitle = paste("Période :", min(category_data$Date), "→", max(category_data$Date)),
+      x        = "Date",
+      y        = "Unités vendues",
+      fill     = "Région"
+    ) +
+    theme_minimal()
+
+  ggplotly(plot_3)
+
+} else {
+  print(paste("Aucune donnée disponible pour la catégorie :", params$category))
+}
+```
+
+> **Interprétation :** Ce graphique montre les unités vendues par date pour
+> la catégorie **`r params$category`**. Chaque couleur représente une région différente.
+
+---
+
+## Conclusion
+
+| Section | Outil | Résultat |
+|---|---|---|
+| **Graphiques interactifs** | ggplot2 + plotly | Boxplot zoomable |
+| **Tableaux interactifs** | DT | Tableau filtrable |
+| **Filtres dynamiques** | params + dplyr | Filtrage par catégorie |
+| **Validation** | if/else | Fallback si données vides |
+
+> **Recommandation :** Pour explorer d'autres catégories, modifiez le paramètre
+> `category` dans le YAML header et régénérez le rapport.
